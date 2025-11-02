@@ -15,6 +15,7 @@ import { useTranslations } from "@/lib/useTranslations";
 
 export default function HomePage() {
   const t = useTranslations("home");
+  
 
   return (
     <div className="min-h-screen bg-white">
