@@ -20,17 +20,17 @@ export default function MembershipPage() {
   const [error, setError] = useState("")
 
   const handleSelectMembership = async (type: "non-voting" | "voting") => {
-    if (!user) {
-      router.push("/login")
-      return
-    }
+    // if (!user) {
+    //   router.push("/login")
+    //   return
+    // }
 
     // Check if user is already a member
-    const existingMember = getMemberByUserId(user.uid)
-    if (existingMember) {
-      setError("You are already a member")
-      return
-    }
+    // const existingMember = getMemberByUserId(user?.uid!)
+    // if (existingMember) {
+    //   setError("You are already a member")
+    //   return
+    // }
 
     setSelectedType(type)
     setError("")
