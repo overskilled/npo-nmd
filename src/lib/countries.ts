@@ -1,121 +1,151 @@
 // Pawapay supported countries with their mobile money providers
 export interface CountryProvider {
-  code: string
-  name: string
-  dialCode: string
+  code: string;
+  name: string;
+  dialCode: string;
+  flag?: string;
   providers: {
-    id: string
-    name: string
-    logo?: string
-  }[]
+    id: string;
+    name: string;
+  }[];
 }
 
 export const PAWAPAY_COUNTRIES: CountryProvider[] = [
-  {
-    code: "CM",
-    name: "Cameroon",
-    dialCode: "+237",
-    providers: [
-      { id: "mtn_cm", name: "MTN Mobile Money" },
-      { id: "orange_cm", name: "Orange Money" },
-    ],
-  },
-  {
-    code: "CI",
-    name: "Côte d'Ivoire",
-    dialCode: "+225",
-    providers: [
-      { id: "mtn_ci", name: "MTN Mobile Money" },
-      { id: "orange_ci", name: "Orange Money" },
-      { id: "moov_ci", name: "Moov Money" },
-      { id: "wave_ci", name: "Wave" },
-    ],
-  },
-  {
-    code: "GH",
-    name: "Ghana",
-    dialCode: "+233",
-    providers: [
-      { id: "mtn_gh", name: "MTN Mobile Money" },
-      { id: "vodafone_gh", name: "Vodafone Cash" },
-      { id: "airteltigo_gh", name: "AirtelTigo Money" },
-    ],
-  },
-  {
-    code: "KE",
-    name: "Kenya",
-    dialCode: "+254",
-    providers: [
-      { id: "mpesa_ke", name: "M-Pesa" },
-      { id: "airtel_ke", name: "Airtel Money" },
-    ],
-  },
-  {
-    code: "NG",
-    name: "Nigeria",
-    dialCode: "+234",
-    providers: [
-      { id: "mtn_ng", name: "MTN Mobile Money" },
-      { id: "airtel_ng", name: "Airtel Money" },
-      { id: "9mobile_ng", name: "9mobile" },
-    ],
-  },
-  {
-    code: "RW",
-    name: "Rwanda",
-    dialCode: "+250",
-    providers: [
-      { id: "mtn_rw", name: "MTN Mobile Money" },
-      { id: "airtel_rw", name: "Airtel Money" },
-    ],
-  },
-  {
-    code: "SN",
-    name: "Senegal",
-    dialCode: "+221",
-    providers: [
-      { id: "orange_sn", name: "Orange Money" },
-      { id: "free_sn", name: "Free Money" },
-      { id: "wave_sn", name: "Wave" },
-    ],
-  },
-  {
-    code: "TZ",
-    name: "Tanzania",
-    dialCode: "+255",
-    providers: [
-      { id: "mpesa_tz", name: "M-Pesa" },
-      { id: "tigo_tz", name: "Tigo Pesa" },
-      { id: "airtel_tz", name: "Airtel Money" },
-      { id: "halopesa_tz", name: "Halo Pesa" },
-    ],
-  },
-  {
-    code: "UG",
-    name: "Uganda",
-    dialCode: "+256",
-    providers: [
-      { id: "mtn_ug", name: "MTN Mobile Money" },
-      { id: "airtel_ug", name: "Airtel Money" },
-    ],
-  },
-  {
-    code: "ZM",
-    name: "Zambia",
-    dialCode: "+260",
-    providers: [
-      { id: "mtn_zm", name: "MTN Mobile Money" },
-      { id: "airtel_zm", name: "Airtel Money" },
-      { id: "zamtel_zm", name: "Zamtel Kwacha" },
-    ],
-  },
-]
+    {
+        code: "BEN",
+        name: "Benin",
+        dialCode: "+229",
+        flag: "https://static-content.pawapay.io/country_flags/ben.svg",
+        providers: [
+            { id: "MOOV_BEN", name: "Moov" },
+            { id: "MTN_MOMO_BEN", name: "MTN" },
+        ],
+    },
+    {
+        code: "BFA",
+        name: "Burkina Faso",
+        dialCode: "+226",
+        flag: "https://static-content.pawapay.io/country_flags/bfa.svg",
+        providers: [
+            { id: "MOOV_BFA", name: "Moov" },
+            { id: "ORANGE_BFA", name: "Orange" },
+        ],
+    },
+    {
+        code: "CIV",
+        name: "Ivory Coast",
+        dialCode: "+225",
+        flag: "https://static-content.pawapay.io/country_flags/civ.svg",
+        providers: [
+            { id: "MTN_MOMO_CIV", name: "MTN" },
+            { id: "ORANGE_CIV", name: "Orange" },
+        ],
+    },
+    {
+        code: "CMR",
+        name: "Cameroon",
+        dialCode: "+237",
+        flag: "https://static-content.pawapay.io/country_flags/cmr.svg",
+        providers: [
+            { id: "MTN_MOMO_CMR", name: "MTN" },
+            { id: "ORANGE_CMR", name: "Orange" },
+        ],
+    },
+    {
+        code: "COD",
+        name: "Democratic Republic of the Congo",
+        dialCode: "+243",
+        flag: "https://static-content.pawapay.io/country_flags/cod.svg",
+        providers: [
+            { id: "AIRTEL_COD", name: "Airtel" },
+            { id: "ORANGE_COD", name: "Orange" },
+            { id: "VODACOM_MPESA_COD", name: "Vodacom" },
+        ],
+    },
+    {
+        code: "COG",
+        name: "Congo",
+        dialCode: "+242",
+        flag: "https://static-content.pawapay.io/country_flags/cog.svg",
+        providers: [
+            { id: "AIRTEL_COG", name: "Airtel" },
+            { id: "MTN_MOMO_COG", name: "MTN" },
+        ],
+    },
+    {
+        code: "GAB",
+        name: "Gabon",
+        dialCode: "+241",
+        flag: "https://static-content.pawapay.io/country_flags/gab.svg",
+        providers: [
+            { id: "AIRTEL_GAB", name: "Airtel" },
+        ],
+    },
+    {
+        code: "KEN",
+        name: "Kenya",
+        dialCode: "+254",
+        flag: "https://static-content.pawapay.io/country_flags/ken.svg",
+        providers: [
+            { id: "MPESA_KEN", name: "Safaricom" },
+        ],
+    },
+    {
+        code: "RWA",
+        name: "Rwanda",
+        dialCode: "+250",
+        flag: "https://static-content.pawapay.io/country_flags/rwa.svg",
+        providers: [
+            { id: "AIRTEL_RWA", name: "Airtel" },
+            { id: "MTN_MOMO_RWA", name: "MTN" },
+        ],
+    },
+    {
+        code: "SEN",
+        name: "Senegal",
+        dialCode: "+221",
+        flag: "https://static-content.pawapay.io/country_flags/sen.svg",
+        providers: [
+            { id: "FREE_SEN", name: "Free" },
+            { id: "ORANGE_SEN", name: "Orange" },
+        ],
+    },
+    {
+        code: "SLE",
+        name: "Sierra Leone",
+        dialCode: "+232",
+        flag: "https://static-content.pawapay.io/country_flags/sle.svg",
+        providers: [
+            { id: "ORANGE_SLE", name: "Orange" },
+        ],
+    },
+    {
+        code: "UGA",
+        name: "Uganda",
+        dialCode: "+256",
+        flag: "https://static-content.pawapay.io/country_flags/uga.svg",
+        providers: [
+            { id: "AIRTEL_OAPI_UGA", name: "Airtel" },
+            { id: "MTN_MOMO_UGA", name: "MTN" },
+        ],
+    },
+    {
+        code: "ZMB",
+        name: "Zambia",
+        dialCode: "+260",
+        flag: "https://static-content.pawapay.io/country_flags/zmb.svg",
+        providers: [
+            { id: "MTN_MOMO_ZMB", name: "MTN" },
+            { id: "ZAMTEL_ZMB", name: "Zamtel" },
+        ],
+    },
+];
 
 export function getCountryByCode(code: string): CountryProvider | undefined {
-  return PAWAPAY_COUNTRIES.find((c) => c.code === code)
+    return PAWAPAY_COUNTRIES.find((c) => c.code === code)
 }
 
 export function getProvidersByCountry(countryCode: string) {
-  const country = getCountryByCode(countryCode)
-  return country?.providers || []
+    const country = getCountryByCode(countryCode)
+    return country?.providers || []
 }

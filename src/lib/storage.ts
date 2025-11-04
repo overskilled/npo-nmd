@@ -13,10 +13,12 @@ export interface User {
 export interface Member {
   id: string
   userId: string
+  memberNumber?: string
   membershipType: "non-voting" | "voting"
   registrationDate: string
   votingRightsDate?: string
   status: "active" | "inactive"
+  userInfo?: any
 }
 
 export interface Contribution {
@@ -34,6 +36,7 @@ export interface Contribution {
     training: number
     functioning: number
   }
+  userInfo: any
 }
 
 export interface Payment {
@@ -48,6 +51,7 @@ export interface Payment {
   phoneNumber?: string
   email?: string
   createdAt: string
+  userInfo: any
 }
 
 // Storage keys

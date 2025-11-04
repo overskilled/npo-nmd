@@ -98,7 +98,7 @@ export default function MembershipPage() {
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                    <span className="text-sm">Make contributions to our causes</span>
+                    <span className="text-sm">Access to NMD Courses</span>
                   </li>
                 </ul>
 
@@ -113,7 +113,7 @@ export default function MembershipPage() {
             </Card>
 
             {/* Voting Membership */}
-            <Card className={selectedType === "voting" ? "border-primary border-2" : ""}>
+            <Card className={selectedType === "voting" ? "border-blue-500 border-2" : ""}>
               <CardHeader>
                 <div className="flex items-center justify-between mb-2">
                   <CardTitle>Voting Member</CardTitle>
@@ -140,15 +140,11 @@ export default function MembershipPage() {
                     <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                     <span className="text-sm font-semibold">Voting rights in association decisions</span>
                   </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                    <span className="text-sm">Eligible for leadership positions</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                    <span className="text-sm">Priority access to training programs</span>
-                  </li>
                 </ul>
+
+                <div className="w-50 h-16">
+
+                </div>
 
                 <Button
                   className="w-full"
