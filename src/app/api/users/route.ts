@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import { adminAuth } from "@/functions/firebase-admin";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 function generateRandomPassword(length: number = 12): string {
   const charset =
@@ -15,8 +17,6 @@ function generateRandomPassword(length: number = 12): string {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-
-    
     const { email, displayName } = body;
 
     if (!email || !displayName) {
@@ -26,8 +26,10 @@ export async function POST(request: Request) {
       );
     }
 
+    // Generate a random password
     const password = generateRandomPassword(12);
 
+    // Create user in Firebase Auth
     const userRecord = await adminAuth.createUser({
       email,
       password,
@@ -36,29 +38,38 @@ export async function POST(request: Request) {
       disabled: false,
     });
 
-    const transporter = nodemailer.createTransport({
-      host: "smtp.hostinger.com",
-      port: 465,
-      secure: true,
-      auth: {
-        user: "dilan@nanosatellitemissions.com",
-        pass: "z$Y6C;xm:9E~",
-      },
+    // Send welcome email via Resend
+  await resend.emails.send({
+      from: "NMD Association <no-reply@nanosatellitemissions.com>",
+      to: email,
+      subject: "Your NMD Account Has Been Created 🎉",
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+          <h2 style="color: #0056b3;">Welcome, ${displayName}!</h2>
+          <p>Your account has been successfully created. Here are your credentials:</p>
+          <ul>
+            <li><strong>Email:</strong> ${email}</li>
+            <li><strong>Password:</strong> ${password}</li>
+          </ul>
+          <p>Please change your password after logging in for security reasons.</p>
+          <br/>
+          <p>Best regards,<br/><strong>NMD Association Team</strong></p>
+        </div>
+      `,
     });
 
-    const mailOptions = {
-      from: "dilan@nanosatellitemissions.com",
-      to: email,
-      subject: "Your Account has been Created",
-      text: `Hello ${displayName},\n\nYour account has been successfully created. Here are your credentials:\n\nEmail: ${email}\nPassword: ${password}\n\nPlease change your password after logging in for security reasons.\n\nBest regards,\nNMD ASSOCIATION`,
-    };
-
-    await transporter.sendMail(mailOptions);
+    // if (error) {
+    //   console.error("Email send error:", error);
+    //   return NextResponse.json(
+    //     { error: "User created, but failed to send email." },
+    //     { status: 500 }
+    //   );
+    // }
 
     return NextResponse.json({
-      message: "User created successfully",
+      message: "User created successfully and email sent.",
       userId: userRecord.uid,
-      password: password
+      password,
     });
   } catch (error: any) {
     console.error("Error:", error);

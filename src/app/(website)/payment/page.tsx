@@ -288,196 +288,215 @@ function PaymentContent() {
     const generateDepositId = () => uuidv4()
 
     const handlePayment = async () => {
-        setError("")
-        setErrors(prev => ({ ...prev, payment: "" }))
+    setError("");
+    setErrors((prev) => ({ ...prev, payment: "" }));
 
-        if (!validateFields()) {
-            return
-        }
+    if (!validateFields()) return;
 
-        setIsProcessing(true)
+    setIsProcessing(true);
 
-        try {
-            let paymentResult
-            const transactionId = `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-            const currency = getCurrencyForCountry(selectedCountry)
+    try {
+        let paymentResult;
+        const transactionId = `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const currency = getCurrencyForCountry(selectedCountry);
 
-            if (paymentMethod === "pawapay") {
-                const formattedPhone = formatPhoneWithCountryCode(phoneNumber)
-                const depositId = generateDepositId()
+        if (paymentMethod === "pawapay") {
+            const formattedPhone = formatPhoneWithCountryCode(phoneNumber);
+            const depositId = generateDepositId();
 
-                console.log("Initiating PawaPay payment with data:", {
-                    depositId,
-                    phoneNumber: formattedPhone,
-                    mobileProvider,
-                })
+            console.log("🔹 Initiating PawaPay payment:", {
+                depositId,
+                phoneNumber: formattedPhone,
+                provider: mobileProvider,
+                transactionId,
+            });
 
-                const depositData = {
-                    depositId,
-                    payer: {
-                        type: "MMO",
-                        accountDetails: {
-                            phoneNumber: formattedPhone.slice(1),
-                            provider: mobileProvider
-                        }
+            // 1️⃣ CREATE DEPOSIT
+            const depositData = {
+                depositId,
+                payer: {
+                    type: "MMO",
+                    accountDetails: {
+                        phoneNumber: formattedPhone.slice(1),
+                        provider: mobileProvider,
                     },
-                    clientReferenceId: transactionId,
-                    customerMessage: type === "membership" ? `membership` : `contribution`,
-                    // amount: "1",
-                    amount: amount.toString(),
-                    currency,
-                    metadata: [
-                        {
-                            orderId: transactionId,
-                            type,
-                            category,
-                            membershipType,
-                            userName: userInfo.name,
-                            userEmail: userInfo.email
-                        }
-                    ]
-                }
-
-                paymentResult = await createDeposit(depositData)
-
-                if (paymentResult.status !== "ACCEPTED") {
-                    throw new Error(paymentResult.error || "Payment initiation failed.")
-                }
-
-                // Poll for confirmation
-                const confirmedPayment = await pollTransactionStatus(depositId)
-
-                console.log("PawaPay payment confirmation result on front:", confirmedPayment);
-
-                if (!confirmedPayment) {
-                    throw new Error("Payment confirmation timeout. Please check your mobile money account and try again.");
-                }
-
-                // Proceed to save data after successful confirmation
-                const payment: Payment = {
-                    id: `payment-${Date.now()}`,
-                    userId: user?.uid || `user-${userInfo.email}`,
-                    amount,
-                    currency,
-                    provider: paymentMethod,
-                    status: "confirmed",
-                    transactionId: transactionId,
-                    phoneNumber: formattedPhone,
-                    email: userInfo.email,
-                    createdAt: new Date().toISOString(),
-                    userInfo: {
-                        name: userInfo.name,
-                        email: userInfo.email
-                    }
-                }
-
-                await savePayment(payment)
-
-                if (type === "membership" && membershipType) {
-                    const memberId = user?.uid || `user-${Date.now()}`
-                    const memberNumber = amount >= 15000 ? generateMemberNumber() : undefined
-
-                    const member: Member = {
-                        id: memberId,
-                        userId: memberId,
-                        memberNumber,
-                        membershipType,
-                        registrationDate: new Date().toISOString(),
-                        votingRightsDate: membershipType === "voting" ? new Date().toISOString() : undefined,
-                        status: "active",
-                        userInfo: {
-                            name: userInfo.name,
-                            email: userInfo.email
-                        }
-                    }
-
-                    try {
-                        const response = await fetch("/api/users", {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                                email: userInfo.email,
-                                password: userInfo.password,
-                                name: userInfo.name,
-                                membershipType,
-                                contributionAmount: amount
-                            }),
-                        })
-
-                        const data = await response.json()
-
-                        if (!response.ok) {
-                            throw new Error(data.error || "Failed to create member")
-                        }
-
-                        await setToCollection("users", data.userId, {
-                            uid: data.userId,
-                            idNumber: `NMD-ASSO-${nanoid(6)}`,
-                            role: "user",
-                            ...member,
-                        })
-                    } catch (error) {
-                        console.error("Error creating member:", error)
-                        throw error
-                    }
-                }
-
-                if (type === "contribution" && category) {
-                    const allocation = calculateAllocation(category, amount)
-                    const contribution: Contribution = {
-                        id: `contribution-${Date.now()}`,
-                        userId: user?.uid || `user-${userInfo.email}`,
+                },
+                clientReferenceId: transactionId,
+                customerMessage: type === "membership" ? `membership` : `contribution`,
+                amount: "1",
+                // amount: amount.toString(),
+                currency,
+                metadata: [
+                    {
+                        orderId: transactionId,
+                        type,
                         category,
-                        amount,
-                        currency,
-                        paymentProvider: paymentMethod,
-                        paymentStatus: "confirmed",
-                        transactionId: transactionId,
-                        createdAt: new Date().toISOString(),
-                        allocation,
-                        userInfo: {
-                            name: userInfo.name,
-                            email: userInfo.email
-                        }
-                    }
+                        membershipType,
+                        userName: userInfo.name,
+                        userEmail: userInfo.email,
+                    },
+                ],
+            };
 
-                    try {
-                        const response = await fetch("/api/users", {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify(contribution),
-                        })
+            paymentResult = await createDeposit(depositData);
 
-                        const data = await response.json()
-
-                        if (!response.ok) {
-                            throw new Error(data.error || "Failed to create contribution")
-                        }
-                    } catch (error) {
-                        console.error("Error creating contribution:", error)
-                        throw error
-                    }
-                }
-
-                router.push(`/payment/success?transactionId=${transactionId}&type=${type}&amount=${amount}`)
+            if (!paymentResult || paymentResult.status !== "ACCEPTED") {
+                throw new Error(paymentResult?.error || "Payment initiation failed.");
             }
 
-        } catch (error) {
-            console.log("Payment error:", error)
-            const errorMessage = error instanceof Error ? error.message : "Payment failed. Please try again."
-            setError(errorMessage)
-            setErrors(prev => ({
-                ...prev,
-                payment: errorMessage
-            }))
-        } finally {
-            setIsProcessing(false)
+            console.log("✅ Payment request accepted by gateway, polling for confirmation...");
+
+            // 2️⃣ POLL FOR CONFIRMATION
+            const confirmedPayment = await pollTransactionStatus(depositId, 4000, 10);
+
+            if (!confirmedPayment || confirmedPayment.error) {
+                throw new Error(
+                    confirmedPayment?.error ||
+                        "Payment confirmation failed or timed out. Please check your account and try again."
+                );
+            }
+
+            const paymentStatus = confirmedPayment.data?.status;
+            if (paymentStatus !== "COMPLETED") {
+                throw new Error(
+                    paymentStatus === "FAILED"
+                        ? "Payment failed. Please check your balance and retry."
+                        : "Payment not confirmed. Please retry later."
+                );
+            }
+
+            console.log("✅ Payment confirmed:", confirmedPayment.data);
+
+            // 3️⃣ SAVE PAYMENT DATA
+            const payment: Payment = {
+                id: `payment-${Date.now()}`,
+                userId: user?.uid || `user-${userInfo.email}`,
+                amount,
+                currency,
+                provider: paymentMethod,
+                status: "confirmed",
+                transactionId,
+                phoneNumber: formattedPhone,
+                email: userInfo.email,
+                createdAt: new Date().toISOString(),
+                userInfo: {
+                    name: userInfo.name,
+                    email: userInfo.email,
+                },
+            };
+
+            await savePayment(payment);
+
+            // 4️⃣ HANDLE MEMBERSHIP REGISTRATION
+            if (type === "membership" && membershipType) {
+                const memberId = user?.uid || `user-${Date.now()}`;
+                const memberNumber = amount >= 15000 ? generateMemberNumber() : undefined;
+
+                const member: Member = {
+                    id: memberId,
+                    userId: memberId,
+                    memberNumber,
+                    membershipType,
+                    registrationDate: new Date().toISOString(),
+                    votingRightsDate:
+                        membershipType === "voting" ? new Date().toISOString() : undefined,
+                    status: "active",
+                    userInfo: {
+                        name: userInfo.name,
+                        email: userInfo.email,
+                    },
+                };
+
+                try {
+                    const response = await fetch("/api/users", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            email: userInfo.email,
+                            password: userInfo.password,
+                            displayName: userInfo.name,
+                            membershipType,
+                            contributionAmount: amount,
+                        }),
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error("Failed to create member account.");
+                    }
+
+                    await setToCollection("users", data.userId, {
+                        uid: data.userId,
+                        idNumber: `NMD-ASSO-${nanoid(6)}`,
+                        role: "user",
+                        ...member,
+                    });
+                } catch (memberError) {
+                    console.error("❌ Error creating member:", memberError);
+                    throw new Error("Payment succeeded but member creation failed. Please contact support.");
+                }
+            }
+
+            // 5️⃣ HANDLE CONTRIBUTION FLOW
+            if (type === "contribution" && category) {
+                const allocation = calculateAllocation(category, amount);
+                const contribution: Contribution = {
+                    id: `contribution-${Date.now()}`,
+                    userId: user?.uid || `user-${userInfo.email}`,
+                    category,
+                    amount,
+                    currency,
+                    paymentProvider: paymentMethod,
+                    paymentStatus: "confirmed",
+                    transactionId,
+                    createdAt: new Date().toISOString(),
+                    allocation,
+                    userInfo: {
+                        name: userInfo.name,
+                        email: userInfo.email,
+                    },
+                };
+
+                try {
+                    const response = await fetch("/api/users", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(contribution),
+                    });
+
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.error || "Failed to record contribution.");
+                    }
+                } catch (contributionError) {
+                    console.error("❌ Error creating contribution:", contributionError);
+                    throw new Error("Payment succeeded but contribution record failed. Please contact support.");
+                }
+            }
+
+            // 6️⃣ FINAL REDIRECT
+            router.push(
+                `/payment/success?transactionId=${transactionId}&type=${type}&amount=${amount}`
+            );
         }
+    } catch (error) {
+        console.error("❌ Payment error:", error);
+        const message =
+            error instanceof Error
+                ? error.message
+                : "An unexpected error occurred during payment.";
+
+        setError(message);
+        setErrors((prev) => ({ ...prev, payment: message }));
+
+        // Optional: Rollback or notify backend about incomplete transactions
+        // await notifyTransactionFailure(transactionId, message);
+    } finally {
+        setIsProcessing(false);
     }
+};
+
 
     const generateMemberNumber = (): string => {
         const min = 10000000
