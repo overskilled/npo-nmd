@@ -13,18 +13,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import type { ContributionCategory } from "@/lib/types"
-import { Smartphone, CreditCard, AlertCircle, Loader2, Eye, EyeOff, ExternalLink } from "lucide-react"
+import { Smartphone, CreditCard, AlertCircle, Loader2, Eye, EyeOff, ExternalLink, MapPin } from "lucide-react"
 import { useAuth } from "@/context/auth-context"
 import { v4 as uuidv4 } from "uuid"
 
 import { calculateAllocation, formatCurrency, formatDualCurrency } from "@/lib/allocate"
-import { CountryProvider, getCountryByCode, PAWAPAY_COUNTRIES } from "@/lib/countries"
+import { CountryProvider, getCountryByCode, PAWAPAY_COUNTRIES, getAllCountries } from "@/lib/countries"
 import { Contribution, Member, Payment, saveContribution, saveMember, savePayment } from "@/lib/storage"
 import { pollTransactionStatus } from "@/lib/pawapay/poll-transaction"
 import { nanoid } from "nanoid"
 import { setToCollection } from "@/functions/add-to-collection"
 import PaypalButtonWrapper from "@/components/paypalButtonWrapper"
 import Link from "next/link"
+import { Skeleton } from "@/components/ui/skeleton"
 
 function PaymentContent() {
     const router = useRouter()
@@ -37,7 +38,8 @@ function PaymentContent() {
     const category = searchParams.get("category") as ContributionCategory | null
 
     const [paymentMethod, setPaymentMethod] = useState<"pawapay" | "paypal">("pawapay")
-    const [selectedCountry, setSelectedCountry] = useState<string>("CM")
+    const [selectedCountry, setSelectedCountry] = useState<string>("")
+    const [paypalCountry, setPaypalCountry] = useState<string>("")
     const [availableProviders, setAvailableProviders] = useState<CountryProvider["providers"]>([])
     const [phoneNumber, setPhoneNumber] = useState("")
     const [email, setEmail] = useState(user?.email || "")
@@ -46,20 +48,54 @@ function PaymentContent() {
     const [error, setError] = useState("")
     const [showPassword, setShowPassword] = useState(false)
     const [agreeToTerms, setAgreeToTerms] = useState(false)
+    const [createNMDAccount, setCreateNMDAccount] = useState(false)
+    const [isLoading, setIsLoading] = useState(true)
+    const [userLocation, setUserLocation] = useState<{ country: string; countryCode: string } | null>(null)
 
     const [userInfo, setUserInfo] = useState({
         name: "",
         email: user?.email || "",
-        password: "",
     })
 
     const [errors, setErrors] = useState({
         name: "",
         email: "",
-        password: "",
         terms: "",
         payment: ""
     })
+
+    // Get user's location on component mount
+    useEffect(() => {
+        const getUserLocation = async () => {
+            try {
+                // Try to get location from IP
+                const response = await fetch('https://ipapi.co/json/')
+                const data = await response.json()
+                
+                if (data.country_code) {
+                    setUserLocation({
+                        country: data.country_name,
+                        countryCode: data.country_code
+                    })
+                    
+                    // Set as default for both payment methods if it's a PawaPay country
+                    const isPawaPayCountry = PAWAPAY_COUNTRIES.some(country => country.code === data.country_code)
+                    if (isPawaPayCountry) {
+                        setSelectedCountry(data.country_code)
+                    }
+                    setPaypalCountry(data.country_code)
+                }
+            } catch (error) {
+                console.log('Could not get user location:', error)
+                // Fallback to first available country
+                setSelectedCountry(PAWAPAY_COUNTRIES[0]?.code || "CM")
+            } finally {
+                setIsLoading(false)
+            }
+        }
+
+        getUserLocation()
+    }, [])
 
     // Get currency based on selected country
     const getCurrencyForCountry = (countryCode: string): string => {
@@ -75,7 +111,7 @@ function PaymentContent() {
     // Validate all form fields
     const validateFields = () => {
         let valid = true
-        const newErrors = { name: "", email: "", password: "", terms: "", payment: "" }
+        const newErrors = { name: "", email: "", terms: "", payment: "" }
 
         // Name validation
         if (!userInfo.name.trim()) {
@@ -95,15 +131,6 @@ function PaymentContent() {
             valid = false
         }
 
-        // Password validation
-        if (!userInfo.password.trim()) {
-            newErrors.password = "Password is required."
-            valid = false
-        } else if (userInfo.password.length < 6) {
-            newErrors.password = "Password must be at least 6 characters."
-            valid = false
-        }
-
         // Terms and conditions validation
         if (!agreeToTerms) {
             newErrors.terms = "You must agree to the terms and conditions and privacy policy."
@@ -112,6 +139,10 @@ function PaymentContent() {
 
         // Payment method specific validation
         if (paymentMethod === "pawapay") {
+            if (!selectedCountry) {
+                newErrors.payment = "Please select your country for mobile money payment."
+                valid = false
+            }
             if (!phoneNumber.trim()) {
                 newErrors.payment = "Phone number is required for mobile money payments."
                 valid = false
@@ -127,6 +158,10 @@ function PaymentContent() {
                 valid = false
             }
         } else if (paymentMethod === "paypal") {
+            if (!paypalCountry) {
+                newErrors.payment = "Please select your country for PayPal payment."
+                valid = false
+            }
             if (!email.trim()) {
                 newErrors.payment = "Email is required for PayPal payments."
                 valid = false
@@ -197,10 +232,12 @@ function PaymentContent() {
     };
 
     useEffect(() => {
-        const country = getCountryByCode(selectedCountry)
-        if (country) {
-            setAvailableProviders(country.providers)
-            setMobileProvider(country.providers[0]?.id || "")
+        if (selectedCountry) {
+            const country = getCountryByCode(selectedCountry)
+            if (country) {
+                setAvailableProviders(country.providers)
+                setMobileProvider(country.providers[0]?.id || "")
+            }
         }
     }, [selectedCountry])
 
@@ -387,16 +424,16 @@ function PaymentContent() {
 
             await savePayment(payment);
 
-            // 4️⃣ HANDLE MEMBERSHIP REGISTRATION
-            if (type === "membership" && membershipType) {
+            // 4️⃣ HANDLE MEMBERSHIP REGISTRATION OR NMD ACCOUNT CREATION
+            if ((type === "membership" && membershipType) || (type === "contribution" && createNMDAccount)) {
                 const memberId = user?.uid || `user-${Date.now()}`;
-                const memberNumber = amount >= 15000 ? generateMemberNumber() : undefined;
+                const memberNumber = type === "membership" && amount >= 15000 ? generateMemberNumber() : undefined;
 
                 const member: Member = {
                     id: memberId,
                     userId: memberId,
                     memberNumber,
-                    membershipType,
+                    membershipType: type === "membership" ? membershipType : "non-voting" as any,
                     registrationDate: new Date().toISOString(),
                     votingRightsDate:
                         membershipType === "voting" ? new Date().toISOString() : undefined,
@@ -413,9 +450,8 @@ function PaymentContent() {
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                             email: userInfo.email,
-                            password: userInfo.password,
-                            displayName: userInfo.name,
-                            membershipType,
+                            name: userInfo.name,
+                            membershipType: type === "membership" ? membershipType : "non-voting",
                             contributionAmount: amount,
                         }),
                     });
@@ -434,7 +470,7 @@ function PaymentContent() {
                     });
                 } catch (memberError) {
                     console.error("❌ Error creating member:", memberError);
-                    throw new Error("Payment succeeded but member creation failed. Please contact support.");
+                    throw new Error("Payment succeeded but account creation failed. Please contact support.");
                 }
             }
 
@@ -452,6 +488,8 @@ function PaymentContent() {
                     transactionId,
                     createdAt: new Date().toISOString(),
                     allocation,
+                    email: userInfo.email,
+                    displayName: userInfo.name,
                     userInfo: {
                         name: userInfo.name,
                         email: userInfo.email,
@@ -506,14 +544,16 @@ function PaymentContent() {
 
     const currentCountry = getCountryByCode(selectedCountry)
     const currency = getCurrencyForCountry(selectedCountry)
+    const allCountries = getAllCountries()
 
     // PayPal button props
     const paypalProps = {
-        total: amount,
-        disabled: !agreeToTerms || isProcessing || !userInfo.name || !userInfo.email,
+        total: (amount * 0.0016),
+        disabled: !agreeToTerms || isProcessing || !userInfo.name || !userInfo.email || !paypalCountry,
         formData: {
             name: userInfo.name,
             email: userInfo.email,
+            country: paypalCountry,
         },
         type: type || "contribution",
         currency: currency,
@@ -525,7 +565,8 @@ function PaymentContent() {
             try {
                 const transactionId = paymentData.id || `PAYPAL-${Date.now()}`
 
-                if (type === "membership" && membershipType) {
+                // Handle account creation for both membership and mission contributions with NMD account option
+                if ((type === "membership" && membershipType) || (type === "contribution" && createNMDAccount)) {
                     const response = await fetch("/api/auth/register", {
                         method: "POST",
                         headers: {
@@ -533,9 +574,8 @@ function PaymentContent() {
                         },
                         body: JSON.stringify({
                             email: userInfo.email,
-                            password: userInfo.password,
                             name: userInfo.name,
-                            membershipType,
+                            membershipType: type === "membership" ? membershipType : "non-voting",
                             contributionAmount: amount
                         }),
                     })
@@ -586,6 +626,28 @@ function PaymentContent() {
         }
     }
 
+    // Loading skeleton
+    if (isLoading) {
+        return (
+            <div className="flex min-h-screen flex-col">
+                <main className="flex-1 py-12 px-4">
+                    <div className="container mx-auto max-w-2xl">
+                        <div className="text-center mb-8">
+                            <Skeleton className="h-8 w-64 mx-auto mb-2" />
+                            <Skeleton className="h-4 w-48 mx-auto" />
+                        </div>
+                        <div className="space-y-6">
+                            <Skeleton className="h-64 w-full" />
+                            <Skeleton className="h-32 w-full" />
+                            <Skeleton className="h-96 w-full" />
+                            <Skeleton className="h-20 w-full" />
+                        </div>
+                    </div>
+                </main>
+            </div>
+        )
+    }
+
     return (
         <div className="flex min-h-screen flex-col">
             <main className="flex-1 py-12 px-4">
@@ -598,6 +660,12 @@ function PaymentContent() {
                                 : `${category} Contribution Payment`
                             }
                         </p>
+                        {userLocation && (
+                            <div className="flex items-center justify-center gap-2 mt-2 text-sm text-muted-foreground">
+                                <MapPin className="h-4 w-4" />
+                                Detected location: {userLocation.country}
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-6">
@@ -651,44 +719,28 @@ function PaymentContent() {
                                         )}
                                     </div>
 
-                                    {/* Password Field with Show/Hide */}
-                                    <div className="space-y-2">
-                                        <Label htmlFor="password">Password *</Label>
-                                        <div className="relative">
-                                            <Input
-                                                id="password"
-                                                type={showPassword ? "text" : "password"}
-                                                placeholder="Enter your password"
-                                                value={userInfo.password}
-                                                onChange={(e) => setUserInfo({ ...userInfo, password: e.target.value })}
-                                                className={errors.password ? "border-red-500 pr-10" : "pr-10"}
+                                    {/* Create NMD Account Checkbox for Mission Contributions */}
+                                    {type === "contribution" && category === "mission" as any && (
+                                        <div className="flex items-start space-x-2 pt-2">
+                                            <Checkbox
+                                                id="create-nmd-account"
+                                                checked={createNMDAccount}
+                                                onCheckedChange={(checked) => setCreateNMDAccount(checked as boolean)}
                                                 disabled={isProcessing}
                                             />
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                                onClick={() => setShowPassword(!showPassword)}
-                                                disabled={isProcessing}
-                                            >
-                                                {showPassword ? (
-                                                    <EyeOff className="h-4 w-4 text-muted-foreground" />
-                                                ) : (
-                                                    <Eye className="h-4 w-4 text-muted-foreground" />
-                                                )}
-                                            </Button>
+                                            <div className="grid gap-1.5 leading-none">
+                                                <label
+                                                    htmlFor="create-nmd-account"
+                                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                                >
+                                                    Create NMD Account
+                                                </label>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Create a New Millennium Dynamics account to track your contributions and access member benefits.
+                                                </p>
+                                            </div>
                                         </div>
-                                        {errors.password && (
-                                            <p className="text-sm text-red-500 flex items-center gap-1">
-                                                <AlertCircle className="h-3 w-3" />
-                                                {errors.password}
-                                            </p>
-                                        )}
-                                        <p className="text-xs text-muted-foreground">
-                                            Password must be at least 6 characters long
-                                        </p>
-                                    </div>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>
@@ -707,10 +759,63 @@ function PaymentContent() {
                                                 : `${category} Contribution`}
                                         </div>
                                         <div className="text-sm text-muted-foreground">One-time payment</div>
+                                        {type === "contribution" && createNMDAccount && (
+                                            <div className="text-sm text-green-600 font-medium mt-1">
+                                                + NMD Account included
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="text-right">
                                         <div className="text-2xl font-bold">{formatCurrency(amount, currency)}</div>
                                         <div className="text-sm text-muted-foreground">{formatDualCurrency(amount)}</div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Terms and Conditions */}
+                        <Card>
+                            <CardContent className="pt-6">
+                                <div className="flex items-start space-x-2">
+                                    <Checkbox
+                                        id="terms"
+                                        checked={agreeToTerms}
+                                        onCheckedChange={(checked) => setAgreeToTerms(checked as boolean)}
+                                        disabled={isProcessing}
+                                    />
+                                    <div className="grid gap-1.5 leading-none">
+                                        <label
+                                            htmlFor="terms"
+                                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                        >
+                                            I agree to the{" "}
+                                            <Link
+                                                href="/terms-of-service"
+                                                className="text-primary hover:underline hover:text-blue-500 inline-flex items-center"
+                                                target="_blank"
+                                            >
+                                                Terms of Service
+                                                <ExternalLink className="h-3 w-3 ml-1" />
+                                            </Link>{" "}
+                                            and{" "}
+                                            <Link
+                                                href="/privacy-policy"
+                                                className="text-primary hover:underline hover:text-blue-500 inline-flex items-center"
+                                                target="_blank"
+                                            >
+                                                Privacy Policy
+                                                <ExternalLink className="h-3 w-3 ml-1" />
+                                            </Link>
+                                        </label>
+                                        <p className="text-sm text-muted-foreground">
+                                            By proceeding, you agree to our legal terms and conditions.
+                                        </p>
+                                        {errors.terms && (
+                                            <p className="text-sm text-red-500 flex items-center gap-1">
+                                                <AlertCircle className="h-3 w-3" />
+                                                {errors.terms}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             </CardContent>
@@ -739,10 +844,10 @@ function PaymentContent() {
                                     </TabsList>
 
                                     <TabsContent value="pawapay" className="space-y-4 mt-4">
-                                        <div className="space-y-2">
+                                        <div className="space-y-2 w-full">
                                             <Label>Country *</Label>
-                                            <Select value={selectedCountry} onValueChange={handleCountryChange} disabled={isProcessing}>
-                                                <SelectTrigger>
+                                            <Select  value={selectedCountry} onValueChange={handleCountryChange} disabled={isProcessing} >
+                                                <SelectTrigger className="w-full">
                                                     <SelectValue placeholder="Select your country" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -760,115 +865,110 @@ function PaymentContent() {
                                                     ))}
                                                 </SelectContent>
                                             </Select>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label>Mobile Provider *</Label>
-                                            <RadioGroup value={mobileProvider} onValueChange={setMobileProvider} disabled={isProcessing}>
-                                                {availableProviders.map((provider) => (
-                                                    <div key={provider.id} className="flex items-center space-x-2 p-3 border rounded-lg">
-                                                        <RadioGroupItem value={provider.id} id={provider.id} disabled={isProcessing} />
-                                                        <Label htmlFor={provider.id} className="flex-1 cursor-pointer font-normal">
-                                                            {provider.name}
-                                                        </Label>
-                                                    </div>
-                                                ))}
-                                            </RadioGroup>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label htmlFor="phone">Phone Number *</Label>
-                                            <div className="flex gap-2">
-                                                <div className="flex items-center px-3 border rounded-md bg-muted text-muted-foreground min-w-[80px] justify-center">
-                                                    {currentCountry?.dialCode}
-                                                </div>
-                                                <Input
-                                                    id="phone"
-                                                    type="tel"
-                                                    placeholder="6XX XXX XXX"
-                                                    value={phoneNumber}
-                                                    onChange={(e) => handlePhoneChange(e.target.value)}
-                                                    className="flex-1"
-                                                    disabled={isProcessing}
-                                                />
-                                            </div>
-                                            <p className="text-xs text-muted-foreground">
-                                                You will receive a prompt on your phone to confirm the payment
-                                            </p>
-                                        </div>
-
-                                        {/* Mobile Money Payment Button */}
-                                        <Button
-                                            size="lg"
-                                            className="w-full"
-                                            onClick={handlePayment}
-                                            disabled={isProcessing}
-                                        >
-                                            {isProcessing ? (
-                                                <>
-                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                    Processing Payment...
-                                                </>
-                                            ) : (
-                                                `Pay ${formatCurrency(amount, currency)} with Mobile Money`
+                                            {userLocation && PAWAPAY_COUNTRIES.some(c => c.code === userLocation.countryCode) && (
+                                                <p className="text-xs text-muted-foreground">
+                                                    We detected you're in {userLocation.country}. This country is supported for mobile money payments.
+                                                </p>
                                             )}
-                                        </Button>
+                                        </div>
+
+                                        {selectedCountry && (
+                                            <>
+                                                <div className="space-y-2">
+                                                    <Label>Mobile Provider *</Label>
+                                                    <RadioGroup value={mobileProvider} onValueChange={setMobileProvider} disabled={isProcessing}>
+                                                        {availableProviders.map((provider) => (
+                                                            <div key={provider.id} className="flex items-center space-x-2 p-3 border rounded-lg">
+                                                                <RadioGroupItem value={provider.id} id={provider.id} disabled={isProcessing} />
+                                                                <Label htmlFor={provider.id} className="flex-1 cursor-pointer font-normal">
+                                                                    {provider.name}
+                                                                </Label>
+                                                            </div>
+                                                        ))}
+                                                    </RadioGroup>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="phone">Phone Number *</Label>
+                                                    <div className="flex gap-2">
+                                                        <div className="flex items-center px-3 border rounded-md bg-muted text-muted-foreground min-w-[80px] justify-center">
+                                                            {currentCountry?.dialCode}
+                                                        </div>
+                                                        <Input
+                                                            id="phone"
+                                                            type="tel"
+                                                            placeholder="6XX XXX XXX"
+                                                            value={phoneNumber}
+                                                            onChange={(e) => handlePhoneChange(e.target.value)}
+                                                            className="flex-1"
+                                                            disabled={isProcessing}
+                                                        />
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        You will receive a prompt on your phone to confirm the payment
+                                                    </p>
+                                                </div>
+
+                                                {/* Mobile Money Payment Button */}
+                                                <Button
+                                                    size="lg"
+                                                    className="w-full"
+                                                    onClick={handlePayment}
+                                                    disabled={isProcessing || !selectedCountry}
+                                                >
+                                                    {isProcessing ? (
+                                                        <>
+                                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                            Processing Payment...
+                                                        </>
+                                                    ) : (
+                                                        `Pay ${formatCurrency(amount, currency)} with Mobile Money`
+                                                    )}
+                                                </Button>
+                                            </>
+                                        )}
                                     </TabsContent>
 
                                     <TabsContent value="paypal" className="space-y-4 mt-4">
-                                        <PaypalButtonWrapper {...paypalProps} />
+                                        {/* <div className="space-y-2">
+                                            <Label>Country *</Label>
+                                            <Select value={paypalCountry} onValueChange={setPaypalCountry} disabled={isProcessing}>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select your country" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {allCountries.map((country) => (
+                                                        <SelectItem key={country.code} value={country.code}>
+                                                            <div className="flex items-center gap-2">
+                                                                {country.flag && (
+                                                                    <img
+                                                                        src={country.flag}
+                                                                        alt={`${country.name} flag`}
+                                                                        className="w-6 h-4 object-cover rounded"
+                                                                    />
+                                                                )}
+                                                                <span>{country.name}</span>
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {userLocation && (
+                                                <p className="text-xs text-muted-foreground">
+                                                    Detected country: {userLocation.country}
+                                                </p>
+                                            )}
+                                        </div> */}
+{/* 
+                                        {paypalCountry && ( */}
+                                            <PaypalButtonWrapper {...paypalProps} />
+                                        {/* )} */}
                                     </TabsContent>
                                 </Tabs>
                             </CardContent>
                         </Card>
 
-                        {/* Terms and Conditions */}
-                        <Card>
-                            <CardContent className="pt-6">
-                                <div className="flex items-start space-x-2">
-                                    <Checkbox
-                                        id="terms"
-                                        checked={agreeToTerms}
-                                        onCheckedChange={(checked) => setAgreeToTerms(checked as boolean)}
-                                        disabled={isProcessing}
-                                    />
-                                    <div className="grid gap-1.5 leading-none">
-                                        <label
-                                            htmlFor="terms"
-                                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                        >
-                                            I agree to the{" "}
-                                            <Link
-                                                href="/terms-of-service"
-                                                className="text-primary hover:underline inline-flex items-center"
-                                                target="_blank"
-                                            >
-                                                Terms of Service
-                                                <ExternalLink className="h-3 w-3 ml-1" />
-                                            </Link>{" "}
-                                            and{" "}
-                                            <Link
-                                                href="/privacy-policy"
-                                                className="text-primary hover:underline inline-flex items-center"
-                                                target="_blank"
-                                            >
-                                                Privacy Policy
-                                                <ExternalLink className="h-3 w-3 ml-1" />
-                                            </Link>
-                                        </label>
-                                        <p className="text-sm text-muted-foreground">
-                                            By proceeding, you agree to our legal terms and conditions.
-                                        </p>
-                                        {errors.terms && (
-                                            <p className="text-sm text-red-500 flex items-center gap-1">
-                                                <AlertCircle className="h-3 w-3" />
-                                                {errors.terms}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+                        
 
                         {/* Error Display */}
                         {(error || errors.payment) && (

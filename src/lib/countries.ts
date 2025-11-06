@@ -9,6 +9,18 @@ export interface CountryProvider {
     name: string;
   }[];
 }
+export interface Provider {
+  id: string;
+  name: string;
+}
+
+export interface Country {
+  code: string;
+  name: string;
+  dialCode: string;
+  flag?: string;
+  providers: Provider[];
+}
 
 export const PAWAPAY_COUNTRIES: CountryProvider[] = [
     {
@@ -149,3 +161,76 @@ export function getProvidersByCountry(countryCode: string) {
     const country = getCountryByCode(countryCode)
     return country?.providers || []
 }
+
+// Fetch all countries from REST Countries API
+export async function getAllCountries(): Promise<Country[]> {
+  try {
+    const response = await fetch('https://restcountries.com/v3.1/all?fields=cca2,name,idd,flags,currencies');
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch countries');
+    }
+    
+    const countriesData = await response.json();
+    
+    // Transform the API data to our Country format
+    const countries: Country[] = countriesData.map((country: any) => {
+      // Get dial code (remove any formatting)
+      let dialCode = '+1'; // default
+      if (country.idd?.root && country.idd.suffixes?.[0]) {
+        dialCode = country.idd.root + country.idd.suffixes[0];
+      } else if (country.idd?.root) {
+        dialCode = country.idd.root;
+      }
+      
+      // Get currency code
+      let currency = 'USD'; // default
+      if (country.currencies) {
+        const currencyCode = Object.keys(country.currencies)[0];
+        if (currencyCode) {
+          currency = currencyCode;
+        }
+      }
+      
+      return {
+        code: country.cca2,
+        name: country.name.common,
+        dialCode: dialCode,
+        flag: country.flags.png, // Use PNG flag URL
+        currency: currency,
+        providers: [] // Empty for non-PawaPay countries
+      };
+    });
+    
+    // Sort countries alphabetically by name
+    return countries.sort((a, b) => a.name.localeCompare(b.name));
+    
+  } catch (error) {
+    console.error('Error fetching countries from API:', error);
+    
+    // Fallback to a basic list if API fails
+    return getFallbackCountries();
+  }
+}
+
+// Fallback countries in case API fails
+function getFallbackCountries(): Country[] {
+  const fallbackCountries: Country[] = [
+    // Major countries as fallback
+    { code: "US", name: "United States", dialCode: "+1", flag: "🇺🇸", providers: [] },
+    { code: "GB", name: "United Kingdom", dialCode: "+44", flag: "🇬🇧", providers: [] },
+    { code: "FR", name: "France", dialCode: "+33", flag: "🇫🇷", providers: [] },
+    { code: "DE", name: "Germany", dialCode: "+49", flag: "🇩🇪", providers: [] },
+    { code: "CA", name: "Canada", dialCode: "+1", flag: "🇨🇦", providers: [] },
+    { code: "AU", name: "Australia", dialCode: "+61", flag: "🇦🇺", providers: [] },
+    { code: "JP", name: "Japan", dialCode: "+81", flag: "🇯🇵", providers: [] },
+    { code: "CN", name: "China", dialCode: "+86", flag: "🇨🇳",  providers: [] },
+    { code: "IN", name: "India", dialCode: "+91", flag: "🇮🇳",  providers: [] },
+    { code: "BR", name: "Brazil", dialCode: "+55", flag: "🇧🇷", providers: [] },
+    // Include all PawaPay countries in fallback
+    ...PAWAPAY_COUNTRIES
+  ];
+  
+  return fallbackCountries.sort((a, b) => a.name.localeCompare(b.name));
+}
+

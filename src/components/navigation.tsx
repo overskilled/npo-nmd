@@ -25,8 +25,9 @@ export function Navigation() {
     { href: "/about", label: t("about") },
     { href: "/advisory-board", label: t("advisoryBoard") },
     { href: "/mission-237", label: t("mission237") },
-    { href: "/become-member", label: t("becomeMember") },
-    { href: "/get-involved", label: t("getInvolved") },
+    { href: "/membership", label: t("becomeMember") },
+    // { href: "/get-involved", label: t("getInvolved") },
+    { href: "/contribute", label: t("getInvolved") },
     { href: "/contact", label: t("contact") },
   ];
 
@@ -131,7 +132,7 @@ export function Navigation() {
                     </Link>
                   ) : (
                     <>
-                      <Link href="/become-member">
+                      <Link href="/membership">
                         <Button className="bg-blue-600 hover:bg-blue-700 text-white">
                           {t("join")}
                         </Button>

@@ -67,7 +67,7 @@ export default function MembershipPage() {
 
           <div className="grid md:grid-cols-2 gap-6 mb-8">
             {/* Non-Voting Membership */}
-            <Card className={selectedType === "non-voting" ? "border-primary border-2" : ""}>
+            <Card className={selectedType === "non-voting" ? "border-blue-500 border-1" : ""}>
               <CardHeader>
                 <div className="flex items-center justify-between mb-2">
                   <CardTitle>Non-Voting Member</CardTitle>

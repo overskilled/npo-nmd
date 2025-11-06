@@ -42,7 +42,7 @@ export function calculateAllocation(category: ContributionCategory, amount: numb
     }
 }
 
-export const XAF_TO_EUR_RATE = 655.957 // 1 EUR = 655.957 XAF (fixed rate)
+export const XAF_TO_EUR_RATE = 600.957 // 1 EUR = 655.957 XAF (fixed rate)
 
 export function formatCurrency(amount: number, currency = "XAF"): string {
     if (currency === "XAF") {
@@ -57,7 +57,7 @@ export function formatCurrency(amount: number, currency = "XAF"): string {
 
 export function formatDualCurrency(amountXAF: number): string {
     const amountEUR = Math.round((amountXAF / XAF_TO_EUR_RATE) * 100) / 100
-    return `${amountXAF.toLocaleString()} XAF | €${amountEUR.toLocaleString()}`
+    return `${amountXAF.toLocaleString()} XAF | ${amountEUR.toLocaleString()} USD`
 }
 
 export function convertEURtoXAF(amountEUR: number): number {

@@ -23,6 +23,8 @@ export interface Member {
 
 export interface Contribution {
   id: string
+  email?: string
+  displayName: string
   userId: string
   category: "Mission" | "Training" | "Open"
   amount: number

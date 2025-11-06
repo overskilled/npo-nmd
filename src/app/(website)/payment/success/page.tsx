@@ -48,7 +48,7 @@ function SuccessContent() {
             <div className="space-y-3">
               <Button className="w-full" asChild>
                 <Link href="/dashboard">
-                  Go to Dashboard
+                  Go to Member Portal
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
