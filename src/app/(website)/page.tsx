@@ -51,7 +51,7 @@ export default function HomePage() {
                   <Rocket className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
-              <Link href="/become-member">
+              <Link href="/membership">
                 <Button
                   size="lg"
                   variant="outline"
@@ -229,7 +229,7 @@ export default function HomePage() {
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 </Link>
-                <Link href="/get-involved">
+                <Link href="/contribute">
                   <Button
                     size="lg"
                     variant="outline"
@@ -289,7 +289,7 @@ export default function HomePage() {
             {t("cta.description")}
           </p>
           <div className="flex flex-col sm:flex-row gap-6 justify-center">
-            <Link href="/become-member">
+            <Link href="/membership">
               <Button
                 size="lg"
                 className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 h-14 text-lg"

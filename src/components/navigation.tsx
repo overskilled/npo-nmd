@@ -27,7 +27,7 @@ export function Navigation() {
     { href: "/mission-237", label: t("mission237") },
     { href: "/membership", label: t("becomeMember") },
     // { href: "/get-involved", label: t("getInvolved") },
-    { href: "/contribute", label: t("getInvolved") },
+    { href: "/contribute", label: t("contribute") },
     { href: "/contact", label: t("contact") },
   ];
 

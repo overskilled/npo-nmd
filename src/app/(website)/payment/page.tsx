@@ -360,8 +360,8 @@ function PaymentContent() {
                 },
                 clientReferenceId: transactionId,
                 customerMessage: type === "membership" ? `membership` : `contribution`,
-                amount: "1",
-                // amount: amount.toString(),
+                // amount: "1",
+                amount: amount.toString(),
                 currency,
                 metadata: [
                     {

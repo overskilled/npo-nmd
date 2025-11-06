@@ -225,7 +225,7 @@ export default function ContributePage() {
                         <Input
                           id="custom-amount"
                           type="number"
-                          placeholder="Enter amount in USD"
+                          placeholder="Enter amount in XAF"
                           value={customAmount}
                           onChange={(e) => {
                             setCustomAmount(e.target.value)

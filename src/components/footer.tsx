@@ -47,16 +47,16 @@ export function Footer() {
                 {t("navigation.mission237")}
               </Link>
               <Link
-                href="/become-member"
+                href="/membership"
                 className="block text-gray-400 hover:text-blue-400 transition-colors"
               >
                 {t("navigation.becomeMember")}
               </Link>
               <Link
-                href="/get-involved"
+                href="/contribute"
                 className="block text-gray-400 hover:text-blue-400 transition-colors"
               >
-                {t("navigation.getInvolved")}
+                {t("navigation.contribute")}
               </Link>
             </div>
           </div>
